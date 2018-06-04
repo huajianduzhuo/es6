@@ -491,3 +491,26 @@ obj.a // undefined
 ```
 
 * Generator 函数也**不能跟 new 命令一起用**，会报错。
+
+# 使用 generator 封装异步任务
+
+使用 generator 封装异步任务，由下面的例子可以看出，异步任务定义很简单，但是流程管理很复杂。
+
+demo: 07-async.js，在 index.html 中引入，使用浏览器查看结果
+
+```JavaScript
+function* gen() {
+ let url = 'https://api.github.com/users/github'
+ let result = yield fetch(url)
+ console.log(result.bio)
+}
+
+let it = gen()
+let pro = it.next().value
+
+pro.then(res => {
+ return res.json()
+}).then(data => {
+ it.next(data)
+})
+```
