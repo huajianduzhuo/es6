@@ -171,7 +171,12 @@ delete p._name // 报错：private property _name cannot be deleted
 
 `ownKeys (target)`
 
-拦截 `Object.getOwnPropertyNames(proxy)`、`Object.getOwnPropertySymbols(proxy)`、`Object.keys(proxy)`、`for...in` 循环，返回一个数组。
+拦截以下操作，返回一个数组
+
+* `Object.getOwnPropertyNames(proxy)`
+* `Object.getOwnPropertySymbols(proxy)`
+* `Object.keys(proxy)`
+* `for...in`
 
 ### getOwnPropertyDescriptor
 
@@ -183,7 +188,21 @@ delete p._name // 报错：private property _name cannot be deleted
 
 `defineProperty (target, key, propDesc)`
 
-拦截 `Object.defineProperty(proxy, key, propDesc）`、`Object.defineProperties(proxy, propDescs)` 操作
+拦截对 target 添加属性、为属性赋值对操作，不拦截删除属性对操作
+
+`return false` 则对属性的操作不生效
+
+```javascript
+let p = new Proxy({age: 29}, {
+  defineProperty (target, key, propDesc) {
+    console.log('propDesc: ', propDesc) // {configurable: true, enumerable: true, value: "白宇", writable: true}
+    return false
+  }
+})
+p.name = '白宇' // 没有生效
+p.age = 30 // 没有生效。  propDesc 为 { value: 30 }
+delete p.age // 可以生效。  没有进入 defineProperty 拦截方法内
+```
 
 ### preventExtensions
 
@@ -195,13 +214,35 @@ delete p._name // 报错：private property _name cannot be deleted
 
 `getPrototypeOf (target)`
 
-拦截 `Object.getPrototypeOf(proxy)` 操作
+拦截下列操作
+
+* `Object.prototype.__proto__`
+* `Object.prototype.isPrototypeOf()`
+* `Object.getPrototypeOf()`
+* `Reflect.getPrototypeOf()`
+* `instanceof`
+
+```javascript
+let myProto = {name: '白宇'}
+let p = new Proxy({}, {
+  getPrototypeOf (target) {
+    return myProto
+  }
+})
+console.log(p.__proto__) // {name: "白宇"}
+console.log(p.name) // undefined
+```
+
+> 返回值必须是对象或 null。如果目标对象不可扩展，则必须返回目标对象的原型对象。
 
 ### isExtensible
 
 `isExtensible (target)`
 
 拦截 `Object.isExtensible(proxy)` 操作
+
+* 必须返回布尔值，否则返回值会被自动转为布尔值
+* 返回值必须与 target 的 isExtensible 属性保持一致，否则会抛出错误
 
 ### setPrototypeOf
 
@@ -253,3 +294,42 @@ let proxyFun = new Proxy(Fun, {
 console.log(new proxyFun('宇', '白')) // Fun {fullName: '白宇', age: 29}
 ```
 
+## Proxy.revocable()
+
+`Proxy.revocable` 方法返回一个可取消的 Proxy 实例。
+
+```javascript
+let {proxy, revoke} = Proxy.revocable({}, {})
+proxy.name = '白宇'
+console.log(proxy.name) // 白宇
+revoke()
+console.log(proxy.name) // 报错：Cannot perform 'get' on a proxy that has been revoked
+```
+
+`Proxy.revocable` 方法返回一个对象，该对象的 `proxy` 属性是 `Proxy` 实例，`revoke` 属性是一个函数，可以取消 `Proxy` 实例。上面代码中，当执行 `revoke` 函数之后，再访问 `Proxy` 实例，就会抛出一个错误。
+
+`Proxy.revocable` 的一个使用场景是，目标对象不允许直接访问，必须通过代理访问，一旦访问结束，就收回代理权，不允许再次访问。
+
+## this 问题
+
+Proxy 代理后，目标对象内部的方法中的 `this` 会指向代理对象
+
+```javascript
+let target = {
+  fun () {
+    console.log(this === p)
+    console.log(this === target)
+  }
+}
+let p = new Proxy(target, {})
+target.fun() // false true
+p.fun() // true false
+```
+
+> 此外，有些原生对象的内部属性，只有通过正确的 `this` 才能拿到，所以 `Proxy` 也无法代理这些原生对象的属性。
+
+```javascript
+let t = new Date()
+let p = new Proxy(t, {})
+p.getDate() // 报错：this is not a Date object
+```
