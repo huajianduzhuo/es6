@@ -1,3 +1,7 @@
+参考：[阮一峰Proxy教程](http://es6.ruanyifeng.com/#docs/proxy)
+
+demos代码 GitHub 地址：[https://github.com/huajianduzhuo/es6/tree/master/proxy](https://github.com/huajianduzhuo/es6/tree/master/proxy)
+
 # Proxy
 
 Proxy 用于在目标对象之前架设一层拦截，外界对对象的访问，都必须经过这层拦截。因此可以对外界的访问进行过滤和改写。
